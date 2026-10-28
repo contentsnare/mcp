@@ -8,7 +8,8 @@ It runs on your own computer and talks to the [Content Snare API](https://api.co
 
 - **API access on your Content Snare account.** It depends on your plan. If you're not sure, ask [support@contentsnare.com](mailto:support@contentsnare.com).
 - **The right role.** Admins can create access tokens. Editors can too if an admin has allowed it. Reviewers and viewers can't.
-- **Node.js 18 or later.** Check with `node --version`.
+- **Node.js 18 or later.** Check with `node --version`. If you don't have it, install the LTS version from [nodejs.org](https://nodejs.org).
+- **git, if you use the `npx` commands below.** Check with `git --version`. No git? Use the [download option](#prefer-a-local-copy) instead.
 
 ## Step 1: Create a personal access token
 
@@ -91,12 +92,16 @@ claude mcp add contentsnare --scope user -- npx -y github:jamesrose86/content-sn
 
 On Windows, if the server doesn't start, wrap `npx` in `cmd /c`: use `"command": "cmd"` with `"args": ["/c", "npx", "-y", "github:jamesrose86/content-snare-mcp"]`, or `-- cmd /c npx -y github:jamesrose86/content-snare-mcp` for `claude mcp add`.
 
-**Prefer a local copy?** `npx` fetches the server from GitHub each time your app starts it. To run a copy on disk instead:
+#### Prefer a local copy
+
+`npx` fetches the server from GitHub each time your app starts it, and needs git to do it. To run a copy on disk instead, either clone it:
 
 ```bash
 git clone https://github.com/jamesrose86/content-snare-mcp.git
 node content-snare-mcp/dist/index.js setup
 ```
+
+Or, without git, download it: on the GitHub page click **Code**, then **Download ZIP**, unzip it, and run `node path/to/content-snare-mcp/dist/index.js setup`.
 
 Then point your app at it with `"command": "node"` and `"args": ["/full/path/to/content-snare-mcp/dist/index.js"]`. There's no `npm install` step, because `dist/index.js` is a single bundled file.
 
@@ -133,6 +138,8 @@ Content Snare emails you within the last day before a token expires. On the Pers
 | You see | What it means | What to do |
 |---|---|---|
 | Content Snare isn't connected yet | No token found | Follow Steps 1 and 2 |
+| `npm error enoent An unknown git error occurred` | `npx` needs git and can't find it | Install git, or use the [download option](#prefer-a-local-copy) |
+| `node` or `npx` is not recognised | Node.js isn't installed, or your app can't see it | Install Node.js LTS from [nodejs.org](https://nodejs.org), then restart your app |
 | HTTP 401 | The token has expired, been revoked, or was copied incompletely | Rotate or generate a token and save it again |
 | Partner API is disabled | API access isn't on for your account | Contact [support@contentsnare.com](mailto:support@contentsnare.com) |
 | HTTP 403 naming a permission | The token doesn't have that permission | Edit the token on the Personal Access Tokens page and tick it |
