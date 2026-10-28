@@ -1,7 +1,7 @@
 {
   "name": "content-snare-mcp",
   "displayName": "Content Snare",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Work with Content Snare from Claude Code: clients, requests, templates, team members and webhooks through the Content Snare API.",
   "author": {
     "name": "Content Snare",
@@ -11,11 +11,18 @@
   "homepage": "https://github.com/jamesrose86/content-snare-mcp",
   "repository": "https://github.com/jamesrose86/content-snare-mcp",
   "license": "MIT",
-  "keywords": ["content-snare", "mcp", "client-onboarding", "api"],
+  "keywords": [
+    "content-snare",
+    "mcp",
+    "client-onboarding",
+    "api"
+  ],
   "mcpServers": {
     "contentsnare": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/index.js"],
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/dist/index.js"
+      ],
       "env": {
         "CONTENTSNARE_API_TOKEN": "${user_config.api_token}"
       }

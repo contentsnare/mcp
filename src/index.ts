@@ -7,7 +7,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
-const VERSION = "2.0.0";
+const VERSION = "2.1.0";
 const REPO = "jamesrose86/content-snare-mcp";
 const PLUGIN_NAME = "content-snare-mcp";
 const API_ORIGIN = (process.env.CONTENTSNARE_API_URL || "https://api.contentsnare.com").replace(/\/+$/, "");
@@ -54,16 +54,31 @@ function labelsFor(scopes: string[]): string {
 // Token resolution: CONTENTSNARE_API_TOKEN env var, then ~/.contentsnare/config.json
 // ---------------------------------------------------------------------------
 
-type TokenSource = "plugin" | "env" | "file";
+type TokenSource = "plugin" | "desktop" | "env" | "file";
 
 function runningAsClaudeCodePlugin(): boolean {
   return Boolean(process.env.CLAUDE_PLUGIN_ROOT);
 }
 
+// Set by mcpb/manifest.json
+function runningAsClaudeDesktopExtension(): boolean {
+  return process.env.CONTENTSNARE_MCP_HOST === "claude-desktop";
+}
+
+// Claude Desktop on Windows has passed sensitive values through still encrypted
+function envTokenIsEncrypted(): boolean {
+  return Boolean(process.env.CONTENTSNARE_API_TOKEN?.trim().startsWith("__encrypted__"));
+}
+
+const ENCRYPTED_TOKEN_MESSAGE =
+  "Claude Desktop passed the Content Snare access token to the server still encrypted, which is a known " +
+  "Claude Desktop bug. Ask the user to update Claude Desktop to the latest version, then turn the Content Snare " +
+  "extension off and on again under Settings > Extensions.";
+
 function readEnvToken(): string | undefined {
   const value = process.env.CONTENTSNARE_API_TOKEN?.trim();
   // An unset ${user_config.api_token} or ${VAR} can arrive as literal text
-  if (!value || value.includes("${")) return undefined;
+  if (!value || value.includes("${") || envTokenIsEncrypted()) return undefined;
   return value;
 }
 
@@ -81,7 +96,10 @@ function readFileToken(): string | undefined {
 // Read on every call, so a token saved by `setup` works without restarting the server
 function resolveToken(): { token: string; source: TokenSource } | null {
   const envToken = readEnvToken();
-  if (envToken) return { token: envToken, source: runningAsClaudeCodePlugin() ? "plugin" : "env" };
+  if (envToken) {
+    const source = runningAsClaudeCodePlugin() ? "plugin" : runningAsClaudeDesktopExtension() ? "desktop" : "env";
+    return { token: envToken, source };
+  }
   const fileToken = readFileToken();
   if (fileToken) return { token: fileToken, source: "file" };
   return null;
@@ -91,6 +109,8 @@ function describeSource(source: TokenSource): string {
   switch (source) {
     case "plugin":
       return "Claude Code plugin settings (system credential store)";
+    case "desktop":
+      return "Claude Desktop extension settings (system keychain)";
     case "env":
       return "CONTENTSNARE_API_TOKEN environment variable";
     case "file":
@@ -122,6 +142,14 @@ function saveTokenStep(): string {
       `Installed tab, select ${PLUGIN_NAME} and choose "Configure options"). Paste the token into the ` +
       `masked field there, not into the chat. Claude Code keeps it in the system credential store. ` +
       `Then run /reload-plugins.`
+    );
+  }
+  if (runningAsClaudeDesktopExtension()) {
+    return (
+      `In Claude Desktop, open Settings, then Extensions, find Content Snare and open its settings (Configure). ` +
+      `Paste the token into the "Content Snare personal access token" field there, not into this chat, and save. ` +
+      `Claude Desktop keeps it in the system keychain. If the tools still say it isn't connected, turn the ` +
+      `extension off and on again.`
     );
   }
   return (
@@ -235,7 +263,7 @@ async function api(
   options: { body?: unknown; query?: Query; scopes?: Scope[]; token?: string } = {}
 ): Promise<unknown> {
   const token = options.token ?? resolveToken()?.token;
-  if (!token) throw new ToolError(notConnectedMessage());
+  if (!token) throw new ToolError(envTokenIsEncrypted() ? ENCRYPTED_TOKEN_MESSAGE : notConnectedMessage());
 
   const url = new URL(`${BASE_URL}${apiPath}`);
   for (const [k, v] of Object.entries(options.query ?? {})) {
@@ -644,7 +672,7 @@ function startServer() {
     },
     async () => {
       const resolved = resolveToken();
-      if (!resolved) return textResult(notConnectedMessage());
+      if (!resolved) return textResult(envTokenIsEncrypted() ? ENCRYPTED_TOKEN_MESSAGE : notConnectedMessage());
       return runTool(async () => {
         const me = (await api("GET", "/me", { token: resolved.token })) as {
           full_name?: string;

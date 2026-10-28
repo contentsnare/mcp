@@ -2,13 +2,13 @@
 
 Lets Claude, or any other MCP client, work with your Content Snare account. Create requests from a template or build them on the fly, look up clients, review answers, and manage team members and webhooks, all by asking in plain English.
 
-It runs on your own computer and talks to the [Content Snare API](https://api.contentsnare.com/partner_api/v1/documentation) using a personal access token.
+It runs on your own computer and talks to the [Content Snare API](https://api.contentsnare.com/partner_api/v1/documentation) using a personal access token. It works in apps that can run MCP servers on your computer: Claude Desktop, Claude Code, Codex, Cursor, VS Code and similar. Web-only apps, such as Microsoft 365 Copilot, ChatGPT in a browser and Claude in a browser, can't use it.
 
 ## Before you start
 
 - **API access on your Content Snare account.** It depends on your plan. If you're not sure, ask [support@contentsnare.com](mailto:support@contentsnare.com).
 - **The right role.** Admins can create access tokens. Editors can too if an admin has allowed it. Reviewers and viewers can't.
-- **Node.js 18 or later.** Check with `node --version`. If you don't have it, install the LTS version from [nodejs.org](https://nodejs.org).
+- **Node.js 18 or later, unless you use Claude Desktop**, which has its own. Check with `node --version`. If you don't have it, install the LTS version from [nodejs.org](https://nodejs.org).
 - **git, if you use the `npx` commands below.** Check with `git --version`. No git? Use the [download option](#prefer-a-local-copy) instead.
 
 ## Step 1: Create a personal access token
@@ -59,7 +59,44 @@ Choose an install scope. Claude Code then asks for your **Content Snare personal
 
 To add the token later or replace it, run `/plugin configure content-snare-mcp@content-snare-mcp` (or `/plugin`, then the **Installed** tab, **content-snare-mcp**, **Configure options**), then run `/reload-plugins`. If you install from your shell with `claude plugin install`, Claude Code reminds you to do this. Don't use its `--config` flag for the token, because that leaves the token in your shell history.
 
-### Claude Desktop, Cursor, VS Code and other MCP clients
+### Claude Desktop
+
+Nothing else to install, and no terminal.
+
+1. Download [content-snare.mcpb](https://github.com/jamesrose86/content-snare-mcp/releases/latest/download/content-snare.mcpb).
+2. Double-click it. Claude Desktop opens it. Click **Install**.
+3. When it asks for your **Content Snare personal access token**, paste the token into that field. Claude Desktop keeps it in your computer's keychain.
+
+To add the token later or replace it, open Claude Desktop's **Settings**, then **Extensions**, and open the Content Snare extension's settings. To update to a new version, download the file again and install it over the old one.
+
+### Codex
+
+This covers the Codex CLI, the Codex IDE extension and the ChatGPT desktop app, which share one config.
+
+**1. Add the server.** In a terminal:
+
+```bash
+codex mcp add contentsnare -- npx -y github:jamesrose86/content-snare-mcp
+```
+
+**2. Give it time to start.** Codex waits 10 seconds for a server by default, and the first `npx` start can take longer. Open `~/.codex/config.toml` (on Windows, `C:\Users\<you>\.codex\config.toml`) and add a line under `[mcp_servers.contentsnare]`:
+
+```toml
+[mcp_servers.contentsnare]
+command = "npx"
+args = ["-y", "github:jamesrose86/content-snare-mcp"]
+startup_timeout_sec = 30
+```
+
+**3. Save the token**, in a terminal, not in Codex:
+
+```bash
+npx -y github:jamesrose86/content-snare-mcp setup
+```
+
+Paste the token when it asks. Nothing shows on screen as you paste. To skip the `npx` download each time, use a [local copy](#prefer-a-local-copy) and `codex mcp add contentsnare -- node /full/path/to/content-snare-mcp/dist/index.js` instead.
+
+### Cursor, VS Code, GitHub Copilot and other MCP clients
 
 **1. Save the token.** Open a terminal (not your AI chat) and run:
 
@@ -69,9 +106,7 @@ npx -y github:jamesrose86/content-snare-mcp setup
 
 Paste the token when it asks. Nothing shows on screen as you paste. The command checks the token with Content Snare, then saves it to `.contentsnare/config.json` in your home folder (on Windows, `C:\Users\<you>\.contentsnare\config.json`).
 
-**2. Add the server to your app.** The config needs no token, because the server reads the saved file.
-
-Claude Desktop, in `claude_desktop_config.json`:
+**2. Add the server to your app.** The config needs no token, because the server reads the saved file. Most apps take this JSON in their MCP settings:
 
 ```json
 {
@@ -84,10 +119,14 @@ Claude Desktop, in `claude_desktop_config.json`:
 }
 ```
 
-Claude Code without the plugin:
+From the command line:
 
 ```bash
+# Claude Code without the plugin
 claude mcp add contentsnare --scope user -- npx -y github:jamesrose86/content-snare-mcp
+
+# GitHub Copilot CLI
+copilot mcp add contentsnare -- npx -y github:jamesrose86/content-snare-mcp
 ```
 
 On Windows, if the server doesn't start, wrap `npx` in `cmd /c`: use `"command": "cmd"` with `"args": ["/c", "npx", "-y", "github:jamesrose86/content-snare-mcp"]`, or `-- cmd /c npx -y github:jamesrose86/content-snare-mcp` for `claude mcp add`.

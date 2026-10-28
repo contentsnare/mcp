@@ -1,0 +1,52 @@
+{
+  "manifest_version": "0.3",
+  "name": "content-snare",
+  "display_name": "Content Snare",
+  "version": "0.0.0",
+  "description": "Create requests, look up clients, review answers and manage your Content Snare account from Claude.",
+  "long_description": "Connects Claude to your Content Snare account through the Content Snare API. Ask Claude to send a request from a template, build a new request with its own questions, find a client, approve answers, or manage team members and webhooks.\n\nYou need a Content Snare personal access token. In Content Snare, go to **Settings > Security > Personal Access Tokens**, click **Generate access token**, tick the permissions you want Claude to have, and copy the token. Paste it into this extension's settings, never into a chat.\n\nAPI access depends on your Content Snare plan. Questions: support@contentsnare.com.",
+  "author": {
+    "name": "Content Snare",
+    "email": "support@contentsnare.com",
+    "url": "https://contentsnare.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jamesrose86/content-snare-mcp.git"
+  },
+  "homepage": "https://github.com/jamesrose86/content-snare-mcp",
+  "documentation": "https://github.com/jamesrose86/content-snare-mcp#readme",
+  "support": "https://github.com/jamesrose86/content-snare-mcp/issues",
+  "icon": "icon.png",
+  "keywords": ["content snare", "client onboarding", "document collection", "accounting", "requests"],
+  "license": "MIT",
+  "privacy_policies": ["https://contentsnare.com/privacy/"],
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {
+        "CONTENTSNARE_API_TOKEN": "${user_config.api_token}",
+        "CONTENTSNARE_MCP_HOST": "claude-desktop"
+      }
+    }
+  },
+  "user_config": {
+    "api_token": {
+      "type": "string",
+      "title": "Content Snare personal access token",
+      "description": "In Content Snare: Settings > Security > Personal Access Tokens > Generate access token. It starts with cs_pat_. Leave blank to add it later under Settings > Extensions.",
+      "sensitive": true,
+      "required": false
+    }
+  },
+  "tools": []
+}

@@ -10,12 +10,28 @@ npm run typecheck  # type-check only
 
 `dist/index.js` is committed and must be rebuilt before every commit that changes `src/`. It's a single esbuild bundle with every dependency inlined, so the Claude Code plugin, `npx github:...` and a plain `git clone` all run it with no `npm install`. That's also why everything is in `devDependencies`.
 
+## Claude Desktop extension
+
+```bash
+npm run build:mcpb   # rebuilds dist/, then packs build/content-snare.mcpb
+```
+
+`scripts/build-mcpb.mjs` takes `mcpb/manifest.base.json`, sets the version from `package.json`, fills the tool list by asking the built server, adds `mcpb/icon.png`, validates and packs. `build/` is gitignored. The manifest sets `CONTENTSNARE_MCP_HOST=claude-desktop` so the server's setup steps point at Claude Desktop's extension settings.
+
+## Releasing
+
+1. Bump the version in `package.json`, `.claude-plugin/plugin.json` and `VERSION` in `src/index.ts`.
+2. `npm run build:mcpb`, then commit and push, including `dist/index.js`.
+3. `gh release create vX.Y.Z build/content-snare.mcpb --title vX.Y.Z --notes "..."`. Keep the asset name `content-snare.mcpb`, because the README links to `releases/latest/download/content-snare.mcpb`.
+
 ## Layout
 
 ```
 .claude-plugin/
   plugin.json        Claude Code plugin: MCP server definition and the masked api_token prompt
   marketplace.json   Makes this repo installable with /plugin marketplace add
+mcpb/                Claude Desktop extension: base manifest and icon
+scripts/             build-mcpb.mjs
 src/index.ts         The whole server: token handling, setup command, API client, tools
 dist/index.js        Bundled output (committed)
 docs/                Partner API reference for create_request_with_fields
@@ -27,12 +43,12 @@ The server uses a Content Snare personal access token (prefix `cs_pat_`), sent a
 
 It looks for the token on every tool call, in this order:
 
-1. `CONTENTSNARE_API_TOKEN`. The Claude Code plugin fills this from its sensitive `api_token` option. An unfilled `${user_config.api_token}` or `${VAR}` placeholder counts as unset.
+1. `CONTENTSNARE_API_TOKEN`. The Claude Code plugin and the Claude Desktop extension fill this from their sensitive `api_token` option. An unfilled `${user_config.api_token}` or `${VAR}` placeholder counts as unset. A value starting `__encrypted__` (a Claude Desktop bug on Windows) gets its own error message.
 2. `~/.contentsnare/config.json`, written by `contentsnare-mcp setup`.
 
 Reading it on every call means a token saved with `setup` works without restarting the server.
 
-With no token the server still starts, and every tool returns setup steps for the AI client to walk the user through. The steps adapt to how the server was launched: plugin users are sent to `/plugin` > Configure options, everyone else gets the exact `setup` command for their install. The text never asks the user to paste the token into the chat.
+With no token the server still starts, and every tool returns setup steps for the AI client to walk the user through. The steps adapt to how the server was launched: Claude Code plugin users are sent to `/plugin configure`, Claude Desktop extension users to Settings > Extensions, and everyone else gets the exact `setup` command for their install. The text never asks the user to paste the token into the chat.
 
 API errors are turned into instructions: 401 sends the user to rotate the token, 403 names the missing permission using the labels from the Personal Access Tokens page, and "Partner API is disabled" points to support.
 
