@@ -1,7 +1,7 @@
 {
   "name": "content-snare-mcp",
   "displayName": "Content Snare",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "description": "Work with Content Snare from Claude Code: clients, requests, templates, team members and webhooks through the Content Snare API.",
   "author": {
     "name": "Content Snare",
@@ -11,6 +11,7 @@
   "homepage": "https://github.com/contentsnare/mcp",
   "repository": "https://github.com/contentsnare/mcp",
   "license": "MIT",
+  "icon": "./mcpb/icon.png",
   "keywords": [
     "content-snare",
     "mcp",

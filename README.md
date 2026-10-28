@@ -46,9 +46,8 @@ You install it as a plugin from this repository. The desktop app needs **git** t
 
 1. Start a session in the **Code** tab, click **+** next to the prompt box and choose **Add plugins** (or **Plugins**, then **Browse plugins**).
 2. Choose **Add marketplace** and enter `contentsnare/mcp`.
-3. Select **Content Snare** and install it. Installing for your user account makes it available in every project.
-4. If the app asks for your **Content Snare personal access token**, paste it there.
-5. In the session, ask Claude to "check my Content Snare connection". If the token isn't saved yet, Claude walks you through saving it without pasting it into the chat.
+3. Select **Content Snare** and click **Add to this computer**.
+4. In the session, ask Claude to "connect Content Snare". A page opens in your browser (or Claude gives you a link to it). Paste your token there and click **Connect**. The page runs on your own computer, checks the token with Content Snare and saves it, so the token never goes into the chat.
 
 Typing `/plugin` commands in the desktop app doesn't work. They only run in a terminal session.
 
@@ -69,7 +68,7 @@ Or in two steps, on Claude Code older than 2.1.275:
 
 Choose an install scope. Claude Code then asks for your **Content Snare personal access token** in a masked field. Paste it there. Claude Code keeps it in your system's secure credential store, not in a settings file, and passes it to the server when it starts.
 
-To add the token later or replace it, run `/plugin configure content-snare-mcp@content-snare-mcp` (or `/plugin`, then the **Installed** tab, **content-snare-mcp**, **Configure options**), then run `/reload-plugins`. If you install from your shell with `claude plugin install`, Claude Code reminds you to do this. Don't use its `--config` flag for the token, because that leaves the token in your shell history.
+To add the token later or replace it, run `/plugin configure content-snare-mcp@content-snare-mcp` (or `/plugin`, then the **Installed** tab, **content-snare-mcp**, **Configure options**), then run `/reload-plugins`. Or ask Claude to "connect Content Snare" and use the browser page. If you install from your shell with `claude plugin install`, don't use its `--config` flag for the token, because that leaves the token in your shell history.
 
 ### Claude Desktop
 
@@ -100,25 +99,13 @@ args = ["-y", "github:contentsnare/mcp"]
 startup_timeout_sec = 30
 ```
 
-**3. Save the token**, in a terminal, not in Codex:
+**3. Connect your token.** Ask Codex to "connect Content Snare". A page opens in your browser where you paste the token, as [described above](#claude-code-in-the-claude-desktop-app-the-code-tab).
 
-```bash
-npx -y github:contentsnare/mcp setup
-```
-
-Paste the token when it asks. Nothing shows on screen as you paste. To skip the `npx` download each time, use a [local copy](#prefer-a-local-copy) and `codex mcp add contentsnare -- node /full/path/to/content-snare-mcp/dist/index.js` instead.
+To skip the `npx` download each time, use a [local copy](#prefer-a-local-copy) and `codex mcp add contentsnare -- node /full/path/to/content-snare-mcp/dist/index.js` instead.
 
 ### Cursor, VS Code, GitHub Copilot and other MCP clients
 
-**1. Save the token.** Open a terminal (not your AI chat) and run:
-
-```bash
-npx -y github:contentsnare/mcp setup
-```
-
-Paste the token when it asks. Nothing shows on screen as you paste. The command checks the token with Content Snare, then saves it to `.contentsnare/config.json` in your home folder (on Windows, `C:\Users\<you>\.contentsnare\config.json`).
-
-**2. Add the server to your app.** The config needs no token, because the server reads the saved file. Most apps take this JSON in their MCP settings:
+**1. Add the server to your app.** The config needs no token. Most apps take this JSON in their MCP settings:
 
 ```json
 {
@@ -142,6 +129,10 @@ copilot mcp add contentsnare -- npx -y github:contentsnare/mcp
 ```
 
 On Windows, if the server doesn't start, wrap `npx` in `cmd /c`: use `"command": "cmd"` with `"args": ["/c", "npx", "-y", "github:contentsnare/mcp"]`, or `-- cmd /c npx -y github:contentsnare/mcp` for `claude mcp add`.
+
+**2. Connect your token.** Ask your AI to "connect Content Snare" and paste the token into the page that opens in your browser.
+
+If you'd rather use a terminal, `npx -y github:contentsnare/mcp setup` does the same job: paste the token when it asks (nothing shows as you paste). Both save it to `.contentsnare/config.json` in your home folder (on Windows, `C:\Users\<you>\.contentsnare\config.json`).
 
 #### Prefer a local copy
 
@@ -178,17 +169,18 @@ Avoid a `.env` file in a project folder for this. AI coding agents read project 
 
 Ask your AI to "check my Content Snare connection". It runs `check_connection` and shows who the token belongs to, its permissions and when it expires.
 
-If you haven't saved a token yet, the server still starts. Ask your AI to do anything with Content Snare and it will walk you through Steps 1 and 2, without asking you to paste the token into the chat.
+If you haven't saved a token yet, the server still starts. Ask your AI to do anything with Content Snare and it will give you the connect page, without asking you to paste the token into the chat.
 
 ## When the token expires
 
-Content Snare emails you within the last day before a token expires. On the Personal Access Tokens page, use **Rotate token** on the expired token or generate a new one, then save it again the same way you did the first time.
+Content Snare emails you within the last day before a token expires. On the Personal Access Tokens page, use **Rotate token** on the expired token or generate a new one, then ask your AI to "connect Content Snare" again and paste the new one into the page.
 
 ## Troubleshooting
 
 | You see | What it means | What to do |
 |---|---|---|
-| Content Snare isn't connected yet | No token found | Follow Steps 1 and 2 |
+| Content Snare isn't connected yet | No token found | Ask your AI to "connect Content Snare" |
+| The connect page says the link has expired | Links last 30 minutes and work once | Ask your AI to "connect Content Snare" again for a new link |
 | `npm error enoent An unknown git error occurred` | `npx` needs git and can't find it | Install git, or use the [download option](#prefer-a-local-copy) |
 | `node` or `npx` is not recognised | Node.js isn't installed, or your app can't see it | Install Node.js LTS from [nodejs.org](https://nodejs.org), then restart your app |
 | HTTP 401 | The token has expired, been revoked, or was copied incompletely | Rotate or generate a token and save it again |

@@ -3765,7 +3765,7 @@ var require_schemes = __commonJS({
       urnComponent.nss = (uuidComponent.uuid || "").toLowerCase();
       return urnComponent;
     }
-    var http = (
+    var http2 = (
       /** @type {SchemeHandler} */
       {
         scheme: "http",
@@ -3778,7 +3778,7 @@ var require_schemes = __commonJS({
       /** @type {SchemeHandler} */
       {
         scheme: "https",
-        domainHost: http.domainHost,
+        domainHost: http2.domainHost,
         parse: httpParse,
         serialize: httpSerialize
       }
@@ -3822,7 +3822,7 @@ var require_schemes = __commonJS({
     var SCHEMES = (
       /** @type {Record<SchemeName, SchemeHandler>} */
       {
-        http,
+        http: http2,
         https,
         ws,
         wss,
@@ -36659,9 +36659,11 @@ var StdioServerTransport = class {
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-var VERSION = "2.1.2";
+import * as http from "node:http";
+import * as crypto from "node:crypto";
+import { spawn } from "node:child_process";
+var VERSION = "2.2.0";
 var REPO = "contentsnare/mcp";
-var PLUGIN_NAME = "content-snare-mcp";
 var API_ORIGIN = (process.env.CONTENTSNARE_API_URL || "https://api.contentsnare.com").replace(/\/+$/, "");
 var BASE_URL = `${API_ORIGIN}/partner_api/v1`;
 var TOKENS_PAGE = "https://app.contentsnare.com/settings/security/access-tokens";
@@ -36737,56 +36739,207 @@ function setupCommand() {
   if (!script || /[\\/]_npx[\\/]/.test(script)) return `npx -y github:${REPO} setup`;
   return `node "${script.replace(/\\/g, "/")}" setup`;
 }
-function saveTokenStep() {
-  if (runningAsClaudeCodePlugin()) {
-    return `In Claude Code, run /plugin configure ${PLUGIN_NAME}@${PLUGIN_NAME} (or run /plugin, open the Installed tab, select ${PLUGIN_NAME} and choose "Configure options"). Paste the token into the masked field there, not into the chat. Claude Code keeps it in the system credential store. Then run /reload-plugins.
-
-   If those commands aren't available (for example in the Claude desktop app), open a terminal window instead and run:
-
-    ${setupCommand()}
-
-   Paste the token when it asks. Nothing shows on screen as it's pasted. It saves the token to ${CONFIG_FILE}, which the plugin also reads, so no restart is needed.`;
+var CONNECT_PAGE_TTL_MS = 30 * 60 * 1e3;
+var connectPage = null;
+var browserOpened = false;
+var escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+function pageHtml(body) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Connect Content Snare</title><style>
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f6f4fb;color:#404040;margin:0;padding:32px 16px}
+main{max-width:540px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;box-shadow:0 2px 12px rgba(54,4,132,.08)}
+h1{font-size:22px;color:#360484;margin:0 0 16px}ol{padding-left:20px;line-height:1.6}a{color:#703DC1}
+label{display:block;font-weight:600;margin:20px 0 6px}
+input{width:100%;box-sizing:border-box;padding:10px 12px;font-size:15px;border:1px solid #c9c2d9;border-radius:8px}
+button{margin-top:14px;background:#703DC1;color:#fff;border:0;border-radius:8px;padding:11px 22px;font-size:15px;font-weight:600;cursor:pointer}
+.error{background:#fdecf4;border-left:4px solid #F04E98;padding:10px 12px;border-radius:6px;margin-bottom:12px}
+.ok{background:#eafaf2;border-left:4px solid #2e9d63;padding:10px 12px;border-radius:6px}
+.small{font-size:13px;color:#6b6b6b;margin-top:18px}code{font-size:13px}
+</style></head><body><main>${body}</main></body></html>`;
+}
+function connectFormHtml(error62) {
+  return pageHtml(`<h1>Connect Content Snare</h1>
+${error62 ? `<div class="error">${escapeHtml(error62)}</div>` : ""}
+<ol>
+<li>In Content Snare, open <a href="${TOKENS_PAGE}" target="_blank" rel="noopener noreferrer">Settings &gt; Security &gt; Personal Access Tokens</a>.</li>
+<li>Click <b>Generate access token</b> and give it a name you'll recognise, such as Claude.</li>
+<li>Tick the permissions you want your AI to have. Manage permissions don't include read access, so tick the matching Read ones too.</li>
+<li>Confirm with your password, then copy the token. It starts with <code>${TOKEN_PREFIX}</code>.</li>
+</ol>
+<form method="post" autocomplete="off">
+<label for="token">Paste your token here</label>
+<input id="token" name="token" type="password" required autofocus spellcheck="false">
+<button type="submit">Connect</button>
+</form>
+<p class="small">This page runs on your own computer. The token is checked with Content Snare and saved on this computer only, in ${escapeHtml(CONFIG_FILE)}. Never paste it into a chat.</p>`);
+}
+function connectedHtml(me) {
+  const permissions = (me.scopes ?? []).map((s) => PERMISSION_LABELS[s] ?? s);
+  return pageHtml(`<h1>Content Snare is connected</h1>
+<div class="ok">Connected as <b>${escapeHtml(me.full_name ?? "your account")}</b>.</div>
+${permissions.length ? `<p>Permissions: ${permissions.map(escapeHtml).join(", ")}.</p>` : ""}
+${me.expires_at ? `<p>The token expires on ${escapeHtml(new Date(me.expires_at).toLocaleDateString())}. Content Snare emails you the day before.</p>` : ""}
+<p>You can close this tab and go back to Claude, or whichever AI app you're using.</p>`);
+}
+function sendHtml(res, status, html) {
+  res.writeHead(status, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store",
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer"
+  });
+  res.end(html);
+}
+function readBody(req, limit) {
+  return new Promise((resolve2, reject) => {
+    let data = "";
+    req.setEncoding("utf8");
+    req.on("data", (chunk) => {
+      data += chunk;
+      if (data.length > limit) {
+        reject(new Error("Request too large"));
+        req.destroy();
+      }
+    });
+    req.on("end", () => resolve2(data));
+    req.on("error", reject);
+  });
+}
+async function handleConnectRequest(req, res, secret, port, done) {
+  const host = req.headers.host ?? "";
+  if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) {
+    return sendHtml(res, 400, pageHtml("<h1>Bad request</h1>"));
   }
+  if (new URL(req.url ?? "/", `http://${host}`).pathname !== `/connect/${secret}`) {
+    return sendHtml(res, 404, pageHtml("<h1>This link has expired</h1><p>Ask your AI app to connect Content Snare again for a new link.</p>"));
+  }
+  if (req.method === "GET") return sendHtml(res, 200, connectFormHtml());
+  if (req.method !== "POST") return sendHtml(res, 405, pageHtml("<h1>Not allowed</h1>"));
+  if (req.headers.origin && req.headers.origin !== `http://${host}`) {
+    return sendHtml(res, 403, pageHtml("<h1>Not allowed</h1>"));
+  }
+  let token;
+  try {
+    token = (new URLSearchParams(await readBody(req, 8192)).get("token") ?? "").replace(/\s/g, "");
+  } catch {
+    return sendHtml(res, 413, connectFormHtml("That was too long to be a token. Copy just the token and try again."));
+  }
+  if (!token) return sendHtml(res, 400, connectFormHtml("Paste your token first."));
+  let me;
+  try {
+    me = await api("GET", "/me", { token, plainErrors: true });
+  } catch (err) {
+    const message = /HTTP 401/.test(err.message) ? "Content Snare didn't accept that token. Check you copied all of it, or generate a new one." : `Couldn't check the token with Content Snare: ${err.message.split("\n")[0]}`;
+    return sendHtml(res, 400, connectFormHtml(message));
+  }
+  saveTokenFile(token);
+  sendHtml(res, 200, connectedHtml(me));
+  done();
+}
+function startConnectPage() {
+  if (connectPage) return Promise.resolve(connectPage.url);
+  const secret = crypto.randomBytes(24).toString("base64url");
+  const server = http.createServer();
+  const close = () => {
+    if (connectPage?.server === server) connectPage = null;
+    setTimeout(() => {
+      server.close();
+      server.closeAllConnections?.();
+    }, 1e3).unref();
+  };
+  return new Promise((resolve2) => {
+    server.on("request", (req, res) => {
+      const { port } = server.address();
+      handleConnectRequest(req, res, secret, port, close).catch(() => {
+        if (!res.headersSent) sendHtml(res, 500, pageHtml("<h1>Something went wrong</h1><p>Try the link again.</p>"));
+      });
+    });
+    server.once("error", () => resolve2(null));
+    server.listen(0, "127.0.0.1", () => {
+      server.unref();
+      const { port } = server.address();
+      connectPage = { url: `http://127.0.0.1:${port}/connect/${secret}`, server };
+      setTimeout(close, CONNECT_PAGE_TTL_MS).unref();
+      resolve2(connectPage.url);
+    });
+  });
+}
+function openBrowserOnce(url2) {
+  if (browserOpened || process.env.CONTENTSNARE_NO_BROWSER) return;
+  browserOpened = true;
+  const [command, args2] = process.platform === "win32" ? ["cmd", ["/c", "start", "", url2]] : process.platform === "darwin" ? ["open", [url2]] : ["xdg-open", [url2]];
+  try {
+    const child = spawn(command, args2, { stdio: "ignore", detached: true, windowsHide: true });
+    child.on("error", () => {
+    });
+    child.unref();
+  } catch {
+  }
+}
+async function saveTokenStep() {
   if (runningAsClaudeDesktopExtension()) {
     return `In Claude Desktop, open Settings, then Extensions, find Content Snare and open its settings (Configure). Paste the token into the "Content Snare personal access token" field there, not into this chat, and save. Claude Desktop keeps it in the system keychain. If the tools still say it isn't connected, turn the extension off and on again.`;
   }
-  return `Open a separate terminal window (not this chat) and run:
+  const terminal = `Only if the page won't open (for example when the AI app runs on a remote machine), they can run this in a terminal instead and paste the token when asked: ${setupCommand()}`;
+  const url2 = await startConnectPage();
+  if (!url2) {
+    return `Ask the user to open a terminal window (not this chat) and run:
 
     ${setupCommand()}
 
-   Paste the token when it asks. Nothing shows on screen as it's pasted. The command checks the token with Content Snare and saves it to ${CONFIG_FILE}. No restart is needed.`;
-}
-function getTokenSteps() {
+   Then paste the token when it asks. Nothing shows on screen as it's pasted.`;
+  }
+  openBrowserOnce(url2);
   return [
-    `1. Open ${TOKENS_PAGE} (in Content Snare: Settings, then Security, then Personal Access Tokens).`,
-    `2. Click "Generate access token".`,
-    `3. Name it something recognisable, such as "Claude MCP".`,
-    `4. Choose when it expires. Admins can pick 30 days to 2 years. Editors always get 90 days.`,
-    `5. Tick the permissions for what they want to do. "Manage" permissions don't include read access, so tick the matching "Read" ones too. For full use of this server: "Read clients", "Manage clients", "Read requests", "Manage requests and supported templates", "Review request answers" and "Read templates". "Read team members", "Manage team members" and "Manage webhooks" are only needed for team and webhook tools, and the last two are admin-only.`,
-    `6. Confirm with their Content Snare password (and authenticator code if 2FA is on), then click "Generate access token".`,
-    `7. Copy the token. It starts with ${TOKEN_PREFIX} and is only shown once.`,
-    `8. ${saveTokenStep()}`,
-    `9. Then call check_connection to confirm it worked.`
+    `Give the user this link to open in their browser: ${url2}`,
+    `   It may already have opened. It's a page running on their own computer, not a website. They paste the token there, and it checks the token with Content Snare and saves it to ${CONFIG_FILE}. The link works for 30 minutes. No restart is needed.`,
+    `   ${terminal}`
+  ].join("\n");
+}
+var TOKEN_STEPS = [
+  `Open ${TOKENS_PAGE} (in Content Snare: Settings, then Security, then Personal Access Tokens).`,
+  `Click "Generate access token".`,
+  `Name it something recognisable, such as "Claude".`,
+  `Choose when it expires. Admins can pick 30 days to 2 years. Editors always get 90 days.`,
+  `Tick the permissions for what they want to do. "Manage" permissions don't include read access, so tick the matching "Read" ones too. For full use of this server: "Read clients", "Manage clients", "Read requests", "Manage requests and supported templates", "Review request answers" and "Read templates". "Read team members", "Manage team members" and "Manage webhooks" are only needed for team and webhook tools, and the last two are admin-only.`,
+  `Confirm with their Content Snare password (and authenticator code if 2FA is on), then click "Generate access token".`,
+  `Copy the token. It starts with ${TOKEN_PREFIX} and is only shown once.`
+];
+async function getTokenSteps() {
+  const save = await saveTokenStep();
+  if (runningAsClaudeDesktopExtension()) {
+    return [
+      ...TOKEN_STEPS.map((s, i) => `${i + 1}. ${s}`),
+      `${TOKEN_STEPS.length + 1}. ${save}`,
+      `${TOKEN_STEPS.length + 2}. Then call check_connection to confirm it worked.`
+    ].join("\n");
+  }
+  return [
+    `1. ${save}`,
+    `2. The page explains how to create the token. If they want the steps here:`,
+    ...TOKEN_STEPS.map((s, i) => `   ${String.fromCharCode(97 + i)}. ${s}`),
+    `3. When they say it's done, call check_connection to confirm it worked.`
   ].join("\n");
 }
 var DO_NOT_PASTE = "Never ask the user to paste the token into this chat, and don't offer to save it for them. If they paste it into the chat anyway, tell them to revoke it on the Personal Access Tokens page and generate a new one, because the chat keeps a copy.";
 var ACCESS_NOTES = "If there's no Personal Access Tokens item in Settings, or Generate access token is unavailable: only admins can create tokens unless an admin allows editors to, and reviewers and viewers can't. API access also depends on the Content Snare plan. For help, contact support@contentsnare.com.";
-function notConnectedMessage() {
+async function notConnectedMessage() {
   return [
-    "Content Snare isn't connected yet. Walk the user through these steps.",
+    "Content Snare isn't connected yet. Help the user connect it.",
     DO_NOT_PASTE,
     "",
-    getTokenSteps(),
+    await getTokenSteps(),
     "",
     ACCESS_NOTES
   ].join("\n");
 }
-function reconnectMessage(reason) {
+async function reconnectMessage(reason) {
   return [
     reason,
     "",
     `Ask the user to open ${TOKENS_PAGE}. If the token is listed as expired, they can use "Rotate token" to get a replacement. Otherwise they can generate a new one. Then save it:`,
-    saveTokenStep(),
+    await saveTokenStep(),
     "",
     DO_NOT_PASTE
   ].join("\n");
@@ -36803,10 +36956,10 @@ function errorText(data) {
   }
   return JSON.stringify(data);
 }
-function describeApiError(status, data, scopes, retryAfter) {
+async function describeApiError(status, data, scopes, retryAfter) {
   const detail = errorText(data);
   if (status === 401) {
-    return reconnectMessage(
+    return await reconnectMessage(
       `Content Snare rejected the access token (HTTP 401: ${detail}). It has probably expired, been revoked, or was copied incompletely.`
     );
   }
@@ -36824,7 +36977,7 @@ function describeApiError(status, data, scopes, retryAfter) {
 }
 async function api(method, apiPath, options = {}) {
   const token = options.token ?? resolveToken()?.token;
-  if (!token) throw new ToolError(envTokenIsEncrypted() ? ENCRYPTED_TOKEN_MESSAGE : notConnectedMessage());
+  if (!token) throw new ToolError(envTokenIsEncrypted() ? ENCRYPTED_TOKEN_MESSAGE : await notConnectedMessage());
   const url2 = new URL(`${BASE_URL}${apiPath}`);
   for (const [k, v] of Object.entries(options.query ?? {})) {
     if (v === void 0) continue;
@@ -36856,7 +37009,10 @@ async function api(method, apiPath, options = {}) {
     data = text;
   }
   if (!res.ok) {
-    throw new ToolError(describeApiError(res.status, data, options.scopes ?? [], res.headers.get("retry-after")));
+    if (options.plainErrors) throw new ToolError(`HTTP ${res.status}: ${errorText(data)}`);
+    throw new ToolError(
+      await describeApiError(res.status, data, options.scopes ?? [], res.headers.get("retry-after"))
+    );
   }
   return data;
 }
@@ -37075,7 +37231,7 @@ That doesn't start with ${TOKEN_PREFIX}, so it may not be a personal access toke
   console.log("\nChecking the token with Content Snare...");
   let me;
   try {
-    me = await api("GET", "/me", { token });
+    me = await api("GET", "/me", { token, plainErrors: true });
   } catch (err) {
     const message = err instanceof ToolError && /HTTP 401/.test(err.message) ? "Content Snare rejected that token. Check you copied all of it, or generate a new one." : err.message.split("\n")[0];
     throw new Error(`${message}
@@ -37134,7 +37290,7 @@ function startServer() {
     },
     async () => {
       const resolved = resolveToken();
-      if (!resolved) return textResult(envTokenIsEncrypted() ? ENCRYPTED_TOKEN_MESSAGE : notConnectedMessage());
+      if (!resolved) return textResult(envTokenIsEncrypted() ? ENCRYPTED_TOKEN_MESSAGE : await notConnectedMessage());
       return runTool(async () => {
         const me = await api("GET", "/me", { token: resolved.token });
         return {

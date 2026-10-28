@@ -48,7 +48,11 @@ It looks for the token on every tool call, in this order:
 
 Reading it on every call means a token saved with `setup` works without restarting the server.
 
-With no token the server still starts, and every tool returns setup steps for the AI client to walk the user through. The steps adapt to how the server was launched: Claude Code plugin users are sent to `/plugin configure`, Claude Desktop extension users to Settings > Extensions, and everyone else gets the exact `setup` command for their install. The text never asks the user to paste the token into the chat.
+With no token the server still starts, and every tool returns setup steps for the AI client to walk the user through. The text never asks the user to paste the token into the chat.
+
+For everyone except Claude Desktop extension users (who are sent to Settings > Extensions), the main step is a **connect page**. The server starts a one-off HTTP listener on `127.0.0.1` at a random port and a random 24-byte path, opens it in the browser once per run, and puts the link in the tool result. The user pastes the token there, the page checks it with `/me` and saves it to `~/.contentsnare/config.json`. The listener answers only to `127.0.0.1`/`localhost` Host headers, refuses cross-origin POSTs, sends a strict CSP, and closes after a successful save or 30 minutes. `setup` stays as the fallback for remote sessions, where the user's browser can't reach the server's `127.0.0.1`.
+
+Set `CONTENTSNARE_NO_BROWSER=1` in tests so the server doesn't open browser tabs.
 
 API errors are turned into instructions: 401 sends the user to rotate the token, 403 names the missing permission using the labels from the Personal Access Tokens page, and "Partner API is disabled" points to support.
 
