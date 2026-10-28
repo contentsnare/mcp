@@ -36659,7 +36659,7 @@ var StdioServerTransport = class {
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-var VERSION = "2.1.0";
+var VERSION = "2.1.1";
 var REPO = "jamesrose86/content-snare-mcp";
 var PLUGIN_NAME = "content-snare-mcp";
 var API_ORIGIN = (process.env.CONTENTSNARE_API_URL || "https://api.contentsnare.com").replace(/\/+$/, "");
@@ -36739,7 +36739,13 @@ function setupCommand() {
 }
 function saveTokenStep() {
   if (runningAsClaudeCodePlugin()) {
-    return `In Claude Code, run /plugin configure ${PLUGIN_NAME}@${PLUGIN_NAME} (or run /plugin, open the Installed tab, select ${PLUGIN_NAME} and choose "Configure options"). Paste the token into the masked field there, not into the chat. Claude Code keeps it in the system credential store. Then run /reload-plugins.`;
+    return `In Claude Code, run /plugin configure ${PLUGIN_NAME}@${PLUGIN_NAME} (or run /plugin, open the Installed tab, select ${PLUGIN_NAME} and choose "Configure options"). Paste the token into the masked field there, not into the chat. Claude Code keeps it in the system credential store. Then run /reload-plugins.
+
+   If those commands aren't available (for example in the Claude desktop app), open a terminal window instead and run:
+
+    ${setupCommand()}
+
+   Paste the token when it asks. Nothing shows on screen as it's pasted. It saves the token to ${CONFIG_FILE}, which the plugin also reads, so no restart is needed.`;
   }
   if (runningAsClaudeDesktopExtension()) {
     return `In Claude Desktop, open Settings, then Extensions, find Content Snare and open its settings (Configure). Paste the token into the "Content Snare personal access token" field there, not into this chat, and save. Claude Desktop keeps it in the system keychain. If the tools still say it isn't connected, turn the extension off and on again.`;

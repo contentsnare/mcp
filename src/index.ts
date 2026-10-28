@@ -7,7 +7,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
-const VERSION = "2.1.0";
+const VERSION = "2.1.1";
 const REPO = "jamesrose86/content-snare-mcp";
 const PLUGIN_NAME = "content-snare-mcp";
 const API_ORIGIN = (process.env.CONTENTSNARE_API_URL || "https://api.contentsnare.com").replace(/\/+$/, "");
@@ -141,7 +141,11 @@ function saveTokenStep(): string {
       `In Claude Code, run /plugin configure ${PLUGIN_NAME}@${PLUGIN_NAME} (or run /plugin, open the ` +
       `Installed tab, select ${PLUGIN_NAME} and choose "Configure options"). Paste the token into the ` +
       `masked field there, not into the chat. Claude Code keeps it in the system credential store. ` +
-      `Then run /reload-plugins.`
+      `Then run /reload-plugins.\n\n` +
+      `   If those commands aren't available (for example in the Claude desktop app), open a terminal ` +
+      `window instead and run:\n\n    ${setupCommand()}\n\n` +
+      `   Paste the token when it asks. Nothing shows on screen as it's pasted. It saves the token to ` +
+      `${CONFIG_FILE}, which the plugin also reads, so no restart is needed.`
     );
   }
   if (runningAsClaudeDesktopExtension()) {
