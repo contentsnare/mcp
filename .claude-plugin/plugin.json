@@ -1,0 +1,32 @@
+{
+  "name": "content-snare-mcp",
+  "displayName": "Content Snare",
+  "version": "2.0.0",
+  "description": "Work with Content Snare from Claude Code: clients, requests, templates, team members and webhooks through the Content Snare API.",
+  "author": {
+    "name": "Content Snare",
+    "email": "support@contentsnare.com",
+    "url": "https://contentsnare.com"
+  },
+  "homepage": "https://github.com/jamesrose86/content-snare-mcp",
+  "repository": "https://github.com/jamesrose86/content-snare-mcp",
+  "license": "MIT",
+  "keywords": ["content-snare", "mcp", "client-onboarding", "api"],
+  "mcpServers": {
+    "contentsnare": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/index.js"],
+      "env": {
+        "CONTENTSNARE_API_TOKEN": "${user_config.api_token}"
+      }
+    }
+  },
+  "userConfig": {
+    "api_token": {
+      "type": "string",
+      "title": "Content Snare personal access token",
+      "description": "Create one in Content Snare under Settings > Security > Personal Access Tokens. It starts with cs_pat_. Claude Code stores it in your system credential store, not in a settings file. Leave blank to set it up later.",
+      "sensitive": true
+    }
+  }
+}

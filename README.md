@@ -1,229 +1,182 @@
-# Content Snare MCP Server
+# Content Snare MCP server
 
-An MCP (Model Context Protocol) server that provides AI assistants with full access to the [Content Snare API](https://api.contentsnare.com/partner_api/v1/documentation). Manage clients, requests, templates, team members, webhooks, and build complete request forms programmatically.
+Lets Claude, or any other MCP client, work with your Content Snare account. Create requests from a template or build them on the fly, look up clients, review answers, and manage team members and webhooks, all by asking in plain English.
 
-## Features
+It runs on your own computer and talks to the [Content Snare API](https://api.contentsnare.com/partner_api/v1/documentation) using a personal access token.
 
-- **Clients** - List, create, update, delete clients and list client companies
-- **Requests** - Full CRUD, plus create requests with inline fields (no template needed)
-- **Pages & Sections** - Create pages/sections from templates, get page details with fields
-- **Field Review** - Approve, reject, submit, or revise individual fields
-- **Bulk Actions** - Approve all submitted fields or submit all fields at request/page/section level
-- **Templates** - List request, page, and section templates
-- **Team Members** - Full CRUD for team members
-- **Webhooks** - Full CRUD with granular event subscriptions
-- **Folders & Schedules** - List folders and communication schedules
-- **OAuth with auto-refresh** - Built-in browser-based OAuth flow with automatic token refresh
+## Before you start
 
-## Prerequisites
+- **API access on your Content Snare account.** It depends on your plan. If you're not sure, ask [support@contentsnare.com](mailto:support@contentsnare.com).
+- **The right role.** Admins can create access tokens. Editors can too if an admin has allowed it. Reviewers and viewers can't.
+- **Node.js 18 or later.** Check with `node --version`.
 
-- Node.js 18+
-- A Content Snare API application (Client ID and Client Secret)
+## Step 1: Create a personal access token
 
-## Installation
+1. In Content Snare, go to **Settings**, then **Security**, then **Personal Access Tokens**. Or open [app.contentsnare.com/settings/security/access-tokens](https://app.contentsnare.com/settings/security/access-tokens).
+2. Click **Generate access token**.
+3. Give it a name you'll recognise, such as `Claude MCP`.
+4. Choose when it expires. Admins can pick from 30 days to 2 years. Editors always get 90 days.
+5. Tick the permissions for what you want your AI to do. **Manage** permissions don't include read access, so tick the matching **Read** permission too.
 
-### From npm (when published)
+   | Permission | What it unlocks |
+   |---|---|
+   | Read clients | Look up clients and client companies |
+   | Manage clients | Create, update and delete clients, and create new clients as part of a request |
+   | Read requests | Look up requests, pages, folders and communications schedules |
+   | Manage requests and supported templates | Create, update and delete requests, and add pages and sections |
+   | Review request answers | Approve, reject or submit answers, and run integration actions |
+   | Read templates | List request, page and section templates |
+   | Read team members | Look up team members |
+   | Manage team members (admins only) | Invite, update and remove team members |
+   | Manage webhooks (admins only) | Create, update and delete webhooks |
 
-```bash
-npm install -g contentsnare-mcp
+6. Enter your Content Snare password, plus your authenticator code if you use two-factor authentication, and click **Generate access token**.
+7. Copy the token. It starts with `cs_pat_` and Content Snare only shows it once.
+
+**Keep the token out of your AI chat.** Anything typed into a chat is saved with the conversation. If you paste it in by mistake, revoke it on the same page and generate a new one.
+
+## Step 2: Connect it
+
+Pick the section for the app you use.
+
+### Claude Code (recommended)
+
+Install this repository as a Claude Code plugin. In Claude Code, run:
+
+```text
+/plugin marketplace add jamesrose86/content-snare-mcp
+/plugin install content-snare-mcp@content-snare-mcp
 ```
 
-### From source
+On Claude Code 2.1.275 or later you can do it in one line:
+
+```text
+/plugin install content-snare-mcp --marketplace jamesrose86/content-snare-mcp
+```
+
+Choose an install scope. Claude Code then asks for your **Content Snare personal access token** in a masked field. Paste it there. Claude Code keeps it in your system's secure credential store, not in a settings file, and passes it to the server when it starts.
+
+To add the token later or replace it: run `/plugin`, open the **Installed** tab, select **content-snare-mcp**, choose **Configure options**, then run `/reload-plugins`.
+
+### Claude Desktop, Cursor, VS Code and other MCP clients
+
+**1. Save the token.** Open a terminal (not your AI chat) and run:
+
+```bash
+npx -y github:jamesrose86/content-snare-mcp setup
+```
+
+Paste the token when it asks. Nothing shows on screen as you paste. The command checks the token with Content Snare, then saves it to `.contentsnare/config.json` in your home folder (on Windows, `C:\Users\<you>\.contentsnare\config.json`).
+
+**2. Add the server to your app.** The config needs no token, because the server reads the saved file.
+
+Claude Desktop, in `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "contentsnare": {
+      "command": "npx",
+      "args": ["-y", "github:jamesrose86/content-snare-mcp"]
+    }
+  }
+}
+```
+
+Claude Code without the plugin:
+
+```bash
+claude mcp add contentsnare --scope user -- npx -y github:jamesrose86/content-snare-mcp
+```
+
+On Windows, if the server doesn't start, wrap `npx` in `cmd /c`: use `"command": "cmd"` with `"args": ["/c", "npx", "-y", "github:jamesrose86/content-snare-mcp"]`, or `-- cmd /c npx -y github:jamesrose86/content-snare-mcp` for `claude mcp add`.
+
+**Prefer a local copy?** `npx` fetches the server from GitHub each time your app starts it. To run a copy on disk instead:
 
 ```bash
 git clone https://github.com/jamesrose86/content-snare-mcp.git
-cd content-snare-mcp
-npm install
-npm run build
+node content-snare-mcp/dist/index.js setup
 ```
 
-## Setup
+Then point your app at it with `"command": "node"` and `"args": ["/full/path/to/content-snare-mcp/dist/index.js"]`. There's no `npm install` step, because `dist/index.js` is a single bundled file.
 
-### 1. Enable API access on your Content Snare account
+### Using an environment variable instead
 
-API access is not enabled by default. Contact Content Snare support at [support@contentsnare.com](mailto:support@contentsnare.com) to request API access for your account.
-
-### 2. Create an API application in Content Snare
-
-Once API access is enabled, go to **Settings > API** in your Content Snare account and create a new API application. Set the redirect URI to any HTTPS URL you control (e.g. `https://your-domain.com/callback`). The URL doesn't need to serve anything — you'll just copy the authorization code from the URL bar after redirect.
-
-Note down your **Client ID**, **Client Secret**, and the **Redirect URI** you configured.
-
-### 3. Authorize
-
-Set your credentials and run the auth command:
-
-```bash
-export CONTENTSNARE_CLIENT_ID="your-client-id"
-export CONTENTSNARE_CLIENT_SECRET="your-client-secret"
-export CONTENTSNARE_REDIRECT_URI="https://your-domain.com/callback"
-
-npx contentsnare-mcp auth
-```
-
-This prints an authorization URL. Open it in your browser, approve access, then copy the `code` parameter from the redirect URL and paste it back into the terminal.
-
-Tokens are saved to `~/.contentsnare/tokens.json` and automatically refreshed when they expire. You only need to do this once.
-
-### 4. Configure your MCP client
-
-#### Claude Desktop
-
-Add to your `claude_desktop_config.json`:
+If `CONTENTSNARE_API_TOKEN` is set, the server uses it ahead of the saved file. This suits CI, or loading the token from a password manager into your shell. In a project `.mcp.json`, reference the variable rather than the value, so the token never sits in a file you might commit:
 
 ```json
 {
   "mcpServers": {
     "contentsnare": {
-      "command": "node",
-      "args": ["/absolute/path/to/content-snare-mcp/dist/index.js"],
-      "env": {
-        "CONTENTSNARE_CLIENT_ID": "your-client-id",
-        "CONTENTSNARE_CLIENT_SECRET": "your-client-secret"
-      }
+      "command": "npx",
+      "args": ["-y", "github:jamesrose86/content-snare-mcp"],
+      "env": { "CONTENTSNARE_API_TOKEN": "${CONTENTSNARE_API_TOKEN}" }
     }
   }
 }
 ```
 
-Or if installed globally via npm:
+Avoid a `.env` file in a project folder for this. AI coding agents read project files freely, so a token kept there can end up in the chat.
 
-```json
-{
-  "mcpServers": {
-    "contentsnare": {
-      "command": "contentsnare-mcp",
-      "env": {
-        "CONTENTSNARE_CLIENT_ID": "your-client-id",
-        "CONTENTSNARE_CLIENT_SECRET": "your-client-secret"
-      }
-    }
-  }
-}
-```
+## Check it works
 
-#### VS Code / Claude Code
+Ask your AI to "check my Content Snare connection". It runs `check_connection` and shows who the token belongs to, its permissions and when it expires.
 
-Add to your MCP settings:
+If you haven't saved a token yet, the server still starts. Ask your AI to do anything with Content Snare and it will walk you through Steps 1 and 2, without asking you to paste the token into the chat.
 
-```json
-{
-  "contentsnare": {
-    "command": "node",
-    "args": ["/absolute/path/to/content-snare-mcp/dist/index.js"],
-    "env": {
-      "CONTENTSNARE_CLIENT_ID": "your-client-id",
-      "CONTENTSNARE_CLIENT_SECRET": "your-client-secret"
-    }
-  }
-}
-```
+## When the token expires
 
-### Environment Variables
+Content Snare emails you within the last day before a token expires. On the Personal Access Tokens page, use **Rotate token** on the expired token or generate a new one, then save it again the same way you did the first time.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `CONTENTSNARE_CLIENT_ID` | Yes | OAuth Client ID from your Content Snare API application |
-| `CONTENTSNARE_CLIENT_SECRET` | Yes | OAuth Client Secret from your Content Snare API application |
-| `CONTENTSNARE_REDIRECT_URI` | Auth only | The redirect URI configured in your Content Snare API application (needed for `auth` command) |
-| `CONTENTSNARE_ACCESS_TOKEN` | No | Skip OAuth flow and use a token directly (advanced) |
+## Troubleshooting
 
-If `CONTENTSNARE_ACCESS_TOKEN` is set, it takes precedence and the OAuth flow is bypassed. This is useful for testing or if you manage tokens yourself.
+| You see | What it means | What to do |
+|---|---|---|
+| Content Snare isn't connected yet | No token found | Follow Steps 1 and 2 |
+| HTTP 401 | The token has expired, been revoked, or was copied incompletely | Rotate or generate a token and save it again |
+| Partner API is disabled | API access isn't on for your account | Contact [support@contentsnare.com](mailto:support@contentsnare.com) |
+| HTTP 403 naming a permission | The token doesn't have that permission | Edit the token on the Personal Access Tokens page and tick it |
+| HTTP 429 | Rate limit: 50 reads and 20 writes per 10 seconds | Wait for the number of seconds shown, then retry |
 
-## Required Scopes
+## Tools
 
-The authorization flow requests all available scopes. Different tools require different scopes:
+| Area | Tools | Permission |
+|---|---|---|
+| Connection | `check_connection` | None |
+| Clients | `list_clients`, `get_client`, `list_client_companies` | Read clients |
+| | `create_client`, `update_client`, `delete_client` | Manage clients |
+| Requests | `list_requests`, `get_request`, `get_page` | Read requests |
+| | `create_request`, `create_request_with_fields`, `update_request`, `delete_request`, `create_page`, `create_section` | Manage requests and supported templates, plus Manage clients when the request creates a new client |
+| Review | `review_field`, `approve_all_submitted_fields`, `submit_all_fields`, `run_integration_actions` | Review request answers |
+| Templates | `list_request_templates`, `list_page_templates`, `list_section_templates` | Read templates |
+| Schedules and folders | `list_communication_templates`, `list_folders` | Read requests |
+| Team | `list_team_members`, `get_team_member` | Read team members |
+| | `create_team_member`, `update_team_member`, `delete_team_member` | Manage team members |
+| Webhooks | `list_webhooks`, `get_webhook`, `create_webhook`, `update_webhook`, `delete_webhook` | Manage webhooks |
 
-| Scope | Tools |
-|-------|-------|
-| `read_clients` | list_clients, get_client, list_client_companies |
-| `write_clients` | create_client, update_client, delete_client |
-| `read_requests` | list_requests, get_request, get_page, list_folders, list_communication_templates |
-| `write_requests` | create_request, create_request_with_fields, update_request, delete_request, create_page, create_section |
-| `review_requests` | review_field, approve_all_submitted_fields, submit_all_fields, run_integration_actions |
-| `read_templates` | list_request_templates, list_page_templates, list_section_templates |
-| `read_team_members` | list_team_members, get_team_member |
-| `write_team_members` | create_team_member, update_team_member, delete_team_member |
-| `administration` | list_webhooks, get_webhook, create_webhook, update_webhook, delete_webhook |
+## Building requests with inline fields
 
-## Available Tools
+`create_request_with_fields` builds a whole request (pages, sections and questions) in one call, without a template. Questions can be shown or hidden based on other answers with `show_when` or `hide_when`. A few rules matter, because Content Snare quietly drops conditions that break them:
 
-### Clients
-- `list_clients` - List active clients with search, sort, and pagination
-- `get_client` - Get a client by ID
-- `create_client` - Create a new client
-- `update_client` - Update an existing client
-- `delete_client` - Delete a client
-- `list_client_companies` - List client companies
+- A condition can only refer to a question **on the same page**.
+- For choice questions (single select, multi select, dropdown, task list), an `equals` or `does not equal` value must **exactly match** one of the options, including capitals.
+- Content Snare requires `logical_operator` on every condition group, even with one condition. The server fills in `"and"` if it's missing.
+- `is empty` and `has a value` still need a `value`. The server sends an empty string if it's missing.
 
-### Requests
-- `list_requests` - List requests with filtering, search, sort, and pagination
-- `get_request` - Get a request by ID (includes pages)
-- `create_request` - Create a request from a template
-- `create_request_with_fields` - Create a request with inline pages, sections, and fields
-- `update_request` - Update a request
-- `delete_request` - Delete a request
+The server checks all of this before sending, and tells your AI what to fix instead of creating a request with broken logic. The full field reference is in [docs/create-request-api.md](docs/create-request-api.md).
 
-### Pages & Sections
-- `get_page` - Get a page by ID (includes sections and fields)
-- `create_page` - Create a page from a template
-- `create_section` - Create a section from a template
+## Upgrading from version 1
 
-### Review & Bulk Actions
-- `review_field` - Approve, reject, submit, or revise a field
-- `approve_all_submitted_fields` - Approve all submitted fields (request/page/section level)
-- `submit_all_fields` - Submit all fields for review (request/page/section level)
-- `run_integration_actions` - Run integration actions for a request
+Version 1 used an OAuth app with a client ID, client secret and redirect URL. Version 2 uses a personal access token instead:
 
-### Templates
-- `list_request_templates` - List request templates
-- `list_page_templates` - List page templates
-- `list_section_templates` - List section templates
+- Remove `CONTENTSNARE_CLIENT_ID`, `CONTENTSNARE_CLIENT_SECRET` and `CONTENTSNARE_REDIRECT_URI` from your MCP config.
+- Delete `~/.contentsnare/tokens.json`. It's no longer read.
+- Follow Steps 1 and 2 above.
+- `get_current_user` is now `check_connection`.
 
-### Other
-- `get_current_user` - Get the current authenticated user
-- `list_communication_templates` - List communication schedules
-- `list_folders` - List folders
-- `list_team_members` / `get_team_member` / `create_team_member` / `update_team_member` / `delete_team_member`
-- `list_webhooks` / `get_webhook` / `create_webhook` / `update_webhook` / `delete_webhook`
+## Development
 
-## Creating Requests with Inline Fields
-
-The `create_request_with_fields` tool lets you build a complete request in a single call, without needing a pre-existing template. This is useful for dynamically generated forms.
-
-### Supported Field Types
-
-| Category | data_type values |
-|----------|-----------------|
-| **Text** | `single-line`, `text`, `multi-line text`, `formatted text`, `email`, `url`, `address`, `country select` |
-| **File** | `single image upload`, `multiple image upload`, `single file upload`, `multiple file upload`, `signature` |
-| **Numeric** | `phone`, `number`, `currency`, `date/time`, `numeric rating`, `star rating` |
-| **Options** | `single select option`, `multi select options`, `dropdown`, `task list` (require `options` array) |
-| **Special** | `table` (requires `columns` array), `date range`, `button`, `icon`, `color picker` |
-
-### Conditional Visibility
-
-Fields can be shown/hidden based on answers to other fields using `show_when`:
-
-```json
-{
-  "show_when": {
-    "conditions": [
-      {
-        "question_number": 1,
-        "condition": "equals",
-        "value": "Yes"
-      }
-    ]
-  }
-}
-```
-
-Available operators: `contains`, `equals`, `does not equal`, `less than`, `greater than`, `is empty`, `has a value`
-
-## API Rate Limits
-
-Content Snare enforces rate limits of 50 read and 20 write requests per 10 seconds. If you hit a rate limit, the API will return HTTP 429 with a `Retry-After` header.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

@@ -1,10 +1,12 @@
 # Content Snare API: Create Request with Fields
 
-Create a fully structured request in a single API call — complete with pages, sections, and fields — without needing a pre-built template.
+Create a fully structured request in a single API call, with its pages, sections and fields, without needing a pre-built template.
 
 **Endpoint:** `POST /partner_api/v1/requests`
 
-**Required scopes:** `write_requests`, `write_clients` (if the client doesn't already exist)
+**Authentication:** a personal access token (Settings > Security > Personal Access Tokens) or an OAuth token, sent as `Authorization: Bearer <token>`.
+
+**Required scopes:** `write_requests`, plus `write_clients` if the client doesn't already exist. On the Personal Access Tokens page these are "Manage requests and supported templates" and "Manage clients".
 
 ---
 
@@ -179,15 +181,25 @@ Questions can be shown or hidden based on the client's answers to other question
 | Property | Type | Required | Description |
 |---|---|---|---|
 | `conditions` | array | Yes | One or more condition objects |
-| `logical_operator` | string | When 2+ conditions | `"and"` (all must match) or `"or"` (any must match) |
+| `logical_operator` | string | Yes, even with one condition | `"and"` (all must match) or `"or"` (any must match). Leave it out and the request fails with `logical_operator is missing` |
+
+To hide a question when conditions match instead, use `hide_when` with the same structure. Use `show_when` or `hide_when` on a question, not both.
 
 ### Condition object
 
-| Property | Type | Description |
-|---|---|---|
-| `question_number` | integer | The `question_number` of the field to evaluate |
-| `condition` | string | The comparison operator (see below) |
-| `value` | string | The value to compare against |
+| Property | Type | Required | Description |
+|---|---|---|---|
+| `question_number` | integer | Yes | The `question_number` of the field to evaluate. It must be on the same page |
+| `condition` | string | Yes | The comparison operator (see below) |
+| `value` | string | Yes | The value to compare against. For `is empty` and `has a value`, send an empty string `""` |
+
+### Rules that fail silently
+
+Content Snare accepts these but drops the condition, so the question always shows:
+
+- **A condition that points at a question on another page.** Conditional logic is built one page at a time. Keep a conditional question on the same page as every question it depends on.
+- **A choice value that doesn't match an option exactly.** For `single select option`, `multi select options`, `dropdown` and `task list` questions, an `equals` or `does not equal` value must be the exact text of one of that question's options. Matching is case-sensitive, so `"yes"` won't match an option called `"Yes"`.
+- **A condition with no `value`.** Send `""` rather than leaving it out.
 
 ### Available conditions
 
@@ -250,7 +262,8 @@ This example creates a vendor onboarding form with two pages, conditional logic,
                     "condition": "equals",
                     "value": "Other"
                   }
-                ]
+                ],
+                "logical_operator": "and"
               }
             },
             {
@@ -317,7 +330,8 @@ This example creates a vendor onboarding form with two pages, conditional logic,
                     "condition": "equals",
                     "value": "Yes"
                   }
-                ]
+                ],
+                "logical_operator": "and"
               }
             },
             {
@@ -336,7 +350,8 @@ This example creates a vendor onboarding form with two pages, conditional logic,
                     "condition": "equals",
                     "value": "Yes"
                   }
-                ]
+                ],
+                "logical_operator": "and"
               }
             }
           ]
@@ -377,7 +392,7 @@ This example creates a vendor onboarding form with two pages, conditional logic,
 ## Notes
 
 - **`question_number` must be unique** across the entire request (not just within a section). Start at 1 and increment sequentially.
-- **Conditional references are by `question_number`**, so a question on Page 2 can reference a question on Page 1.
+- **Conditions only work within a page.** A condition refers to another question by `question_number`, and that question must be on the same page. A condition pointing at a question on another page is ignored and the field always shows.
 - **New clients are created automatically** if no client with the given `client_email` exists. In that case, `client_full_name` is required.
 - **Draft vs. published:** Requests created as `"draft"` are not visible to the client until you change the status to `"published"`.
 - **Rate limits:** The API allows 20 write operations per 10 seconds.

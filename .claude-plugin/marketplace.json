@@ -1,0 +1,17 @@
+{
+  "name": "content-snare-mcp",
+  "owner": {
+    "name": "Content Snare",
+    "email": "support@contentsnare.com"
+  },
+  "metadata": {
+    "description": "The Content Snare MCP server, packaged as a Claude Code plugin."
+  },
+  "plugins": [
+    {
+      "name": "content-snare-mcp",
+      "source": "./",
+      "description": "Work with Content Snare from Claude Code: clients, requests, templates, team members and webhooks through the Content Snare API."
+    }
+  ]
+}
