@@ -7,8 +7,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
-const VERSION = "2.1.1";
-const REPO = "jamesrose86/content-snare-mcp";
+const VERSION = "2.1.2";
+const REPO = "contentsnare/mcp";
 const PLUGIN_NAME = "content-snare-mcp";
 const API_ORIGIN = (process.env.CONTENTSNARE_API_URL || "https://api.contentsnare.com").replace(/\/+$/, "");
 const BASE_URL = `${API_ORIGIN}/partner_api/v1`;

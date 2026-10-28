@@ -1,6 +1,6 @@
 {
   "name": "contentsnare-mcp",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "MCP server for the Content Snare API - manage clients, requests, templates, and more",
   "type": "module",
   "bin": {
@@ -20,7 +20,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jamesrose86/content-snare-mcp.git"
+    "url": "git+https://github.com/contentsnare/mcp.git"
   },
   "keywords": [
     "mcp",

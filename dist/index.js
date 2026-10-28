@@ -36659,8 +36659,8 @@ var StdioServerTransport = class {
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-var VERSION = "2.1.1";
-var REPO = "jamesrose86/content-snare-mcp";
+var VERSION = "2.1.2";
+var REPO = "contentsnare/mcp";
 var PLUGIN_NAME = "content-snare-mcp";
 var API_ORIGIN = (process.env.CONTENTSNARE_API_URL || "https://api.contentsnare.com").replace(/\/+$/, "");
 var BASE_URL = `${API_ORIGIN}/partner_api/v1`;

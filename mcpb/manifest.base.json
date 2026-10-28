@@ -12,11 +12,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/jamesrose86/content-snare-mcp.git"
+    "url": "https://github.com/contentsnare/mcp.git"
   },
-  "homepage": "https://github.com/jamesrose86/content-snare-mcp",
-  "documentation": "https://github.com/jamesrose86/content-snare-mcp#readme",
-  "support": "https://github.com/jamesrose86/content-snare-mcp/issues",
+  "homepage": "https://github.com/contentsnare/mcp",
+  "documentation": "https://github.com/contentsnare/mcp#readme",
+  "support": "https://github.com/contentsnare/mcp/issues",
   "icon": "icon.png",
   "keywords": ["content snare", "client onboarding", "document collection", "accounting", "requests"],
   "license": "MIT",
