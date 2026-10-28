@@ -36727,7 +36727,7 @@ function setupCommand() {
 }
 function saveTokenStep() {
   if (runningAsClaudeCodePlugin()) {
-    return `In Claude Code, run /plugin, open the Installed tab, select ${PLUGIN_NAME} and choose "Configure options". Paste the token into the masked field there, not into the chat. Claude Code keeps it in the system credential store. Then run /reload-plugins.`;
+    return `In Claude Code, run /plugin configure ${PLUGIN_NAME}@${PLUGIN_NAME} (or run /plugin, open the Installed tab, select ${PLUGIN_NAME} and choose "Configure options"). Paste the token into the masked field there, not into the chat. Claude Code keeps it in the system credential store. Then run /reload-plugins.`;
   }
   return `Open a separate terminal window (not this chat) and run:
 

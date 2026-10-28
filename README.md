@@ -56,7 +56,7 @@ On Claude Code 2.1.275 or later you can do it in one line:
 
 Choose an install scope. Claude Code then asks for your **Content Snare personal access token** in a masked field. Paste it there. Claude Code keeps it in your system's secure credential store, not in a settings file, and passes it to the server when it starts.
 
-To add the token later or replace it: run `/plugin`, open the **Installed** tab, select **content-snare-mcp**, choose **Configure options**, then run `/reload-plugins`.
+To add the token later or replace it, run `/plugin configure content-snare-mcp@content-snare-mcp` (or `/plugin`, then the **Installed** tab, **content-snare-mcp**, **Configure options**), then run `/reload-plugins`. If you install from your shell with `claude plugin install`, Claude Code reminds you to do this. Don't use its `--config` flag for the token, because that leaves the token in your shell history.
 
 ### Claude Desktop, Cursor, VS Code and other MCP clients
 
