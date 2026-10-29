@@ -1,6 +1,6 @@
 {
   "name": "contentsnare-mcp",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "MCP server for the Content Snare API - manage clients, requests, templates, and more",
   "type": "module",
   "bin": {

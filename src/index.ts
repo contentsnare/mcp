@@ -11,7 +11,7 @@ import * as crypto from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { spawn } from "node:child_process";
 
-const VERSION = "2.2.1";
+const VERSION = "2.2.2";
 const REPO = "contentsnare/mcp";
 const PLUGIN_NAME = "content-snare-mcp";
 const API_ORIGIN = (process.env.CONTENTSNARE_API_URL || "https://api.contentsnare.com").replace(/\/+$/, "");
@@ -297,10 +297,10 @@ function startConnectPage(): Promise<string | null> {
   });
 }
 
-// Opens the connect page once per server run. CONTENTSNARE_NO_BROWSER=1 turns this off
-function openBrowserOnce(url: string): void {
-  if (browserOpened || process.env.CONTENTSNARE_NO_BROWSER) return;
-  browserOpened = true;
+// Opens the connect page once per server run. CONTENTSNARE_NO_BROWSER=1 turns this off.
+// Returns true only when it launched the browser just now, so the tool result can tell the AI not to open it again
+function openBrowserOnce(url: string): boolean {
+  if (browserOpened || process.env.CONTENTSNARE_NO_BROWSER) return false;
   const [command, args] =
     process.platform === "win32"
       ? ["cmd", ["/c", "start", "", url]]
@@ -313,7 +313,10 @@ function openBrowserOnce(url: string): void {
     child.unref();
   } catch {
     // The link is in the tool result as well
+    return false;
   }
+  browserOpened = true;
+  return true;
 }
 
 async function saveTokenStep(): Promise<string> {
@@ -335,10 +338,13 @@ async function saveTokenStep(): Promise<string> {
       `   Then paste the token when it asks. Nothing shows on screen as it's pasted.`
     );
   }
-  openBrowserOnce(url);
+  const opened = openBrowserOnce(url);
   return [
-    `Give the user this link to open in their browser: ${url}`,
-    `   It may already have opened. It's a page running on their own computer, not a website. They paste the ` +
+    opened
+      ? `The connect page has just opened in the user's browser. Don't open it again yourself. Give the user this ` +
+        `link only in case no tab appeared: ${url}`
+      : `Give the user this link to open in their browser: ${url}`,
+    `   It's a page running on their own computer, not a website. They paste the ` +
       `token there, and it checks the token with Content Snare and saves it to ${CONFIG_FILE}. The link works ` +
       `for 30 minutes. No restart is needed.`,
     `   ${terminal}`,

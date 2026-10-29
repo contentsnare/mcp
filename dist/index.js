@@ -36662,7 +36662,7 @@ import * as os from "node:os";
 import * as http from "node:http";
 import * as crypto from "node:crypto";
 import { spawn } from "node:child_process";
-var VERSION = "2.2.1";
+var VERSION = "2.2.2";
 var REPO = "contentsnare/mcp";
 var API_ORIGIN = (process.env.CONTENTSNARE_API_URL || "https://api.contentsnare.com").replace(/\/+$/, "");
 var BASE_URL = `${API_ORIGIN}/partner_api/v1`;
@@ -36868,8 +36868,7 @@ function startConnectPage() {
   });
 }
 function openBrowserOnce(url2) {
-  if (browserOpened || process.env.CONTENTSNARE_NO_BROWSER) return;
-  browserOpened = true;
+  if (browserOpened || process.env.CONTENTSNARE_NO_BROWSER) return false;
   const [command, args2] = process.platform === "win32" ? ["cmd", ["/c", "start", "", url2]] : process.platform === "darwin" ? ["open", [url2]] : ["xdg-open", [url2]];
   try {
     const child = spawn(command, args2, { stdio: "ignore", detached: true, windowsHide: true });
@@ -36877,7 +36876,10 @@ function openBrowserOnce(url2) {
     });
     child.unref();
   } catch {
+    return false;
   }
+  browserOpened = true;
+  return true;
 }
 async function saveTokenStep() {
   if (runningAsClaudeDesktopExtension()) {
@@ -36892,10 +36894,10 @@ async function saveTokenStep() {
 
    Then paste the token when it asks. Nothing shows on screen as it's pasted.`;
   }
-  openBrowserOnce(url2);
+  const opened = openBrowserOnce(url2);
   return [
-    `Give the user this link to open in their browser: ${url2}`,
-    `   It may already have opened. It's a page running on their own computer, not a website. They paste the token there, and it checks the token with Content Snare and saves it to ${CONFIG_FILE}. The link works for 30 minutes. No restart is needed.`,
+    opened ? `The connect page has just opened in the user's browser. Don't open it again yourself. Give the user this link only in case no tab appeared: ${url2}` : `Give the user this link to open in their browser: ${url2}`,
+    `   It's a page running on their own computer, not a website. They paste the token there, and it checks the token with Content Snare and saves it to ${CONFIG_FILE}. The link works for 30 minutes. No restart is needed.`,
     `   ${terminal}`
   ].join("\n");
 }
