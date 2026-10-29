@@ -1,7 +1,7 @@
 {
   "name": "content-snare-mcp",
   "displayName": "Content Snare",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Work with Content Snare from Claude Code: clients, requests, templates, team members and webhooks through the Content Snare API.",
   "author": {
     "name": "Content Snare",

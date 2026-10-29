@@ -36662,7 +36662,7 @@ import * as os from "node:os";
 import * as http from "node:http";
 import * as crypto from "node:crypto";
 import { spawn } from "node:child_process";
-var VERSION = "2.2.0";
+var VERSION = "2.2.1";
 var REPO = "contentsnare/mcp";
 var API_ORIGIN = (process.env.CONTENTSNARE_API_URL || "https://api.contentsnare.com").replace(/\/+$/, "");
 var BASE_URL = `${API_ORIGIN}/partner_api/v1`;
@@ -36787,7 +36787,8 @@ function sendHtml(res, status, html) {
     "Cache-Control": "no-store",
     "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
     "X-Frame-Options": "DENY",
-    "Referrer-Policy": "no-referrer"
+    // same-origin, not no-referrer: with no-referrer browsers send "Origin: null" on the form post
+    "Referrer-Policy": "same-origin"
   });
   res.end(html);
 }
@@ -36816,8 +36817,9 @@ async function handleConnectRequest(req, res, secret, port, done) {
   }
   if (req.method === "GET") return sendHtml(res, 200, connectFormHtml());
   if (req.method !== "POST") return sendHtml(res, 405, pageHtml("<h1>Not allowed</h1>"));
-  if (req.headers.origin && req.headers.origin !== `http://${host}`) {
-    return sendHtml(res, 403, pageHtml("<h1>Not allowed</h1>"));
+  const origin = req.headers.origin;
+  if (origin && origin !== "null" && origin !== `http://${host}`) {
+    return sendHtml(res, 403, pageHtml("<h1>Not allowed</h1><p>Open the link Claude gave you and paste the token there.</p>"));
   }
   let token;
   try {
